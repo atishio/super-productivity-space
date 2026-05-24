@@ -23,7 +23,12 @@ import {
   showTaskWidget,
 } from './task-widget/task-widget';
 import { ensureIndicator } from './indicator';
-import { getIsMinimizeToTray, getIsQuiting, setIsQuiting } from './shared-state';
+import {
+  getIsMinimizeToTray,
+  getIsQuiting,
+  getQuitPending,
+  setIsQuiting,
+} from './shared-state';
 import { loadSimpleStoreAll } from './simple-store';
 import { SimpleStoreKey } from './shared-with-frontend/simple-store.const';
 import { markGpuStartupSuccess } from './gpu-startup-guard';
@@ -526,27 +531,36 @@ const appCloseHandler = (app: App): void => {
 
   mainWin.on('close', (event) => {
     // NOTE: this might not work if we run a second instance of the app
-    log('close event: isQuiting=', getIsQuiting(), 'pendingBeforeCloseIds=', ids);
+    log(
+      'close event: isQuiting=',
+      getIsQuiting(),
+      'quitPending=',
+      getQuitPending(),
+      'pendingBeforeCloseIds=',
+      ids,
+    );
     if (!getIsQuiting()) {
-      // Background mode: always hide to tray on close (keeps MCP server alive)
-      if (_isBackgroundMode) {
-        const indicator = ensureIndicator();
-        if (indicator) {
-          event.preventDefault();
-          setWasMaximizedBeforeHide(mainWin.isMaximized());
-          mainWin.hide();
-          showTaskWidget();
-          return;
+      if (!getQuitPending()) {
+        // Background mode: always hide to tray on close (keeps MCP server alive)
+        if (_isBackgroundMode) {
+          const indicator = ensureIndicator();
+          if (indicator) {
+            event.preventDefault();
+            setWasMaximizedBeforeHide(mainWin.isMaximized());
+            mainWin.hide();
+            showTaskWidget();
+            return;
+          }
         }
-      }
-      if (getIsMinimizeToTray()) {
-        const indicator = ensureIndicator();
-        if (indicator) {
-          event.preventDefault();
-          setWasMaximizedBeforeHide(mainWin.isMaximized());
-          mainWin.hide();
-          showTaskWidget();
-          return;
+        if (getIsMinimizeToTray()) {
+          const indicator = ensureIndicator();
+          if (indicator) {
+            event.preventDefault();
+            setWasMaximizedBeforeHide(mainWin.isMaximized());
+            mainWin.hide();
+            showTaskWidget();
+            return;
+          }
         }
       }
 

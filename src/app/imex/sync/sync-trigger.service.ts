@@ -151,15 +151,17 @@ export class SyncTriggerService {
     mapTo('I_IS_ONLINE'),
   );
 
-  // Fires when the page becomes hidden (tab switch, app backgrounding, close).
-  // Not throttled — a "last chance before close" trigger should always attempt a sync.
-  // Electron uses execBeforeCloseService (IPC-level blocking close) instead.
-  private _visibilityHiddenTrigger$: Observable<string | never> = !IS_ELECTRON
-    ? fromEvent(document, 'visibilitychange').pipe(
-        filter(() => document.visibilityState === 'hidden'),
-        mapTo('I_VISIBILITY_HIDDEN'),
-      )
-    : EMPTY;
+  // Fires when the page becomes hidden (tab switch, minimize-to-tray, app backgrounding).
+  // Not throttled — ensures sync runs before the window goes inactive.
+  // In Electron, this covers minimize-to-tray; the full quit path is handled
+  // separately by execBeforeCloseService (IPC-level blocking close).
+  private _visibilityHiddenTrigger$: Observable<string | never> = fromEvent(
+    document,
+    'visibilitychange',
+  ).pipe(
+    filter(() => document.visibilityState === 'hidden'),
+    mapTo('I_VISIBILITY_HIDDEN'),
+  );
 
   // OTHER INITIAL SYNC STUFF
   // ------------------------

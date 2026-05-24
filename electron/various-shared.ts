@@ -2,12 +2,19 @@ import { app, BrowserWindow } from 'electron';
 import { info } from 'electron-log/main';
 import { getWin, getWasMaximizedBeforeHide } from './main-window';
 import { getIsTaskWidgetAlwaysShow, hideTaskWidget } from './task-widget/task-widget';
-import { setIsQuiting } from './shared-state';
+import { getIsQuiting, setIsQuiting, setQuitPending } from './shared-state';
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 export function quitApp(): void {
-  setIsQuiting(true);
-  app.quit();
+  if (getIsQuiting()) return;
+  setQuitPending(true);
+  const win = getWin();
+  if (win && !win.isDestroyed()) {
+    win.close();
+  } else {
+    setIsQuiting(true);
+    app.quit();
+  }
 }
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
