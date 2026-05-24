@@ -1,0 +1,106 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'release-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+
+      - name: Check out Git repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Reconfigure git to use HTTP authentication
+        run: >
+          git config --global url."https://github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node22-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node22-
+
+      - name: Install npm Packages
+        run: npm i
+
+      - run: npm run env
+
+      - name: Build Frontend & Electron
+        run: npm run build
+
+      - name: Package macOS app (unsigned)
+        run: npx electron-builder --mac --dir
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Create release archive
+        run: |
+          cd .tmp/app-builds
+          MAC_DIR=$(ls -d mac* | head -1)
+          APP_NAME=$(ls "$MAC_DIR" | grep '.app$' | head -1)
+          tar -czf "SuperProductivity-mac.tar.gz" -C "$MAC_DIR" "$APP_NAME"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mac-build
+          path: .tmp/app-builds/SuperProductivity-mac.tar.gz
+
+  # TODO: Uncomment when Windows support is needed
+  # build-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+  #       with:
+  #         node-version: 22
+  #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  #       with:
+  #         persist-credentials: false
+  #     - run: npm i
+  #     - run: npm run env
+  #     - run: npm run build
+  #     - run: npx electron-builder --win --dir
+  #     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+  #       with:
+  #         name: windows-build
+  #         path: .tmp/app-builds/win-unpacked/
+
+  release:
+    needs: [build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS build
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: mac-build
+          path: artifacts/
+
+      # TODO: Uncomment when Windows support is needed
+      # - name: Download Windows build
+      #   uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+      #   with:
+      #     name: windows-build
+      #     path: artifacts/windows/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          files: artifacts/*
