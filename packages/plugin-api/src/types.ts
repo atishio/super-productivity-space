@@ -128,6 +128,7 @@ export interface PluginManifest {
   i18n?: {
     languages: string[]; // Array of supported language codes (e.g., ['en', 'de', 'fr'])
   };
+  autoEnabled?: boolean; // If true, bundled plugin is enabled on first discovery
 }
 
 // Hook payload types
