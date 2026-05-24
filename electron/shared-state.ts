@@ -4,6 +4,7 @@
  */
 
 let isQuiting = false;
+let quitPending = false;
 let isLocked = false;
 let isMinimizeToTray = false;
 let isTrayShowCurrentTask = false;
@@ -13,6 +14,12 @@ export const getIsQuiting = (): boolean => isQuiting;
 
 export const setIsQuiting = (value: boolean): void => {
   isQuiting = value;
+};
+
+export const getQuitPending = (): boolean => quitPending;
+
+export const setQuitPending = (value: boolean): void => {
+  quitPending = value;
 };
 
 export const getIsLocked = (): boolean => isLocked;
