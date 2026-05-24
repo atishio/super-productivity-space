@@ -38,12 +38,16 @@ npm run dev
 
 ## Adding a New Plugin
 
-1. Create a new directory in `plugin-dev/`
-2. Add the plugin configuration to `/packages/build-packages.js`
-3. Run `npm run build:packages` to test the build
+1. Create a new directory in `plugin-dev/` with a `package.json`
+2. Run `npm run build:packages` to build and register the plugin
+
+The build script auto-discovers all plugins in `plugin-dev/` that have a `package.json` and generates `src/assets/bundled-plugins/index.json` at build time. The app fetches this index at runtime to discover available plugins — no manual configuration in `build-packages.js` is needed.
+
+To declare a plugin as auto-enabled on first discovery, set `"autoEnabled": true` in its `manifest.json`.
 
 ## Notes
 
-- The `boilerplate-solid-js` and `sync-md` plugins are development templates and are not included in production builds
+- The `boilerplate-solid-js` plugin is a development template and is not included in production builds
 - Plugin files are automatically copied to `src/assets/` during the build process
 - The build script handles dependency installation automatically
+- If `index.json` is missing (e.g. during dev without a build), the app falls back to a hardcoded plugin list

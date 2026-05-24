@@ -45,20 +45,21 @@ import {
   NodeExecutionConsentDialogResult,
 } from './util/plugin-consent.util';
 
-const BUNDLED_PLUGIN_PATHS = [
-  'assets/bundled-plugins/yesterday-tasks-plugin',
-  'assets/bundled-plugins/sync-md',
-  'assets/bundled-plugins/api-test-plugin',
-  'assets/bundled-plugins/procrastination-buster',
-  'assets/bundled-plugins/automations',
-  'assets/bundled-plugins/github-issue-provider',
-  'assets/bundled-plugins/clickup-issue-provider',
-  'assets/bundled-plugins/brain-dump',
-  'assets/bundled-plugins/voice-reminder',
-  'assets/bundled-plugins/google-calendar-provider',
-  'assets/bundled-plugins/caldav-calendar-provider',
-  'assets/bundled-plugins/document-mode',
-] as const;
+const FALLBACK_BUNDLED_PLUGIN_NAMES = [
+  'yesterday-tasks-plugin',
+  'sync-md',
+  'api-test-plugin',
+  'procrastination-buster',
+  'automations',
+  'github-issue-provider',
+  'clickup-issue-provider',
+  'brain-dump',
+  'voice-reminder',
+  'google-calendar-provider',
+  'caldav-calendar-provider',
+  'document-mode',
+  'ai-productivity-prompts',
+];
 
 @Injectable({
   providedIn: 'root',
@@ -124,12 +125,21 @@ export class PluginService implements OnDestroy {
   }
 
   private async _discoverBuiltInPlugins(): Promise<void> {
-    const pluginPaths = [
-      ...BUNDLED_PLUGIN_PATHS,
-      'assets/bundled-plugins/ai-productivity-prompts', // discover-only
-    ];
+    let pluginNames: string[];
+    try {
+      pluginNames = await firstValueFrom(
+        this._http.get<string[]>('assets/bundled-plugins/index.json'),
+      );
+    } catch {
+      PluginLog.warn(
+        'Bundled plugin index.json not found — using fallback plugin list. ' +
+          'Run "npm run build:packages" to generate index.json.',
+      );
+      pluginNames = [...FALLBACK_BUNDLED_PLUGIN_NAMES];
+    }
 
-    // Only load manifests for discovery
+    const pluginPaths = pluginNames.map((name) => `assets/bundled-plugins/${name}`);
+
     for (const path of pluginPaths) {
       try {
         const manifestUrl = `${path}/manifest.json`;
@@ -183,6 +193,26 @@ export class PluginService implements OnDestroy {
             }
           }
 
+          // Auto-enable bundled plugins that declare autoEnabled in manifest.
+          if (!isEnabled && manifest.autoEnabled) {
+            const hasMetadata =
+              await this._pluginMetaPersistenceService.hasPluginMetadata(manifest.id);
+            if (!hasMetadata) {
+              isEnabled = true;
+              await this._pluginMetaPersistenceService.setPluginEnabled(
+                manifest.id,
+                true,
+              );
+              if (manifest.permissions?.includes('nodeExecution')) {
+                await this._pluginMetaPersistenceService.setNodeExecutionConsent(
+                  manifest.id,
+                  true,
+                );
+              }
+              PluginLog.log(`Auto-enabled bundled plugin '${manifest.id}'`);
+            }
+          }
+
           // Create plugin state without loading code
           const state: PluginState = {
             manifest,
@@ -226,13 +256,6 @@ export class PluginService implements OnDestroy {
         }
       }
     }
-  }
-
-  private async _loadBuiltInPlugins(): Promise<void> {
-    const pluginPaths = [...BUNDLED_PLUGIN_PATHS];
-
-    // KISS: No preloading - just load plugins directly
-    await this._loadPluginsFromPaths(pluginPaths, 'built-in');
   }
 
   private async _discoverUploadedPlugins(): Promise<void> {
@@ -681,36 +704,6 @@ export class PluginService implements OnDestroy {
       PluginLog.err('Failed to load cached plugins:', error);
       // Don't throw - this shouldn't prevent other plugins from loading
     }
-  }
-
-  /**
-   * Load plugins from multiple paths with error handling
-   */
-  private async _loadPluginsFromPaths(
-    pluginPaths: string[],
-    type: 'built-in' | 'uploaded',
-  ): Promise<void> {
-    const promises = pluginPaths.map(async (pluginPath) => {
-      try {
-        const pluginInstance = await this._loadPlugin(pluginPath);
-        // Add all plugin instances to the loaded plugins list so they show up in the management UI
-        // Note: _loadPlugin already adds loaded plugins to _loadedPlugins, so we only need to add disabled ones
-        if (!pluginInstance.loaded && !pluginInstance.isEnabled) {
-          this._loadedPlugins.push(pluginInstance);
-        }
-        // Store the path for built-in plugins to enable reload functionality
-        // This ensures that built-in plugins can be reloaded just like uploaded ones
-        if (pluginInstance.manifest && pluginInstance.manifest.id) {
-          this._pluginPaths.set(pluginInstance.manifest.id, pluginPath);
-        }
-        PluginLog.log(`${type} plugin loaded successfully from ${pluginPath}`);
-      } catch (error) {
-        PluginLog.err(`Failed to load ${type} plugin from ${pluginPath}:`, error);
-        // Continue loading other plugins even if one fails
-      }
-    });
-
-    await Promise.allSettled(promises);
   }
 
   private async _loadPlugin(pluginPath: string): Promise<PluginInstance> {

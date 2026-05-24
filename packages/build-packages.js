@@ -303,6 +303,16 @@ async function buildAll() {
     results.push(result);
   }
 
+  // Generate index.json for runtime auto-discovery of bundled plugins
+  const bundledPluginNames = plugins.filter((p) => !p.skipCopy).map((p) => p.name);
+  const indexPath = path.join('src/assets/bundled-plugins', 'index.json');
+  await ensureDir(path.dirname(indexPath));
+  await fs.writeFile(indexPath, JSON.stringify(bundledPluginNames, null, 2) + '\n');
+  log(
+    `\n📋 Generated ${indexPath} with ${bundledPluginNames.length} plugins`,
+    colors.cyan,
+  );
+
   // Summary
   const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);
   const successful = results.filter((r) => r.success).length;
