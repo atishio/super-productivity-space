@@ -42,7 +42,7 @@ For SuperSync E2E (docker-compose) and the full E2E reference, see [`e2e/CLAUDE.
 
 ## Sync-correctness rules
 
-Touched on most state-related PRs. Read the linked source/doc for full reasoning before editing. Rules 1–3 and 6 are one invariant — *one user intent = one op; replayed/remote ops must not re-trigger effects* — fully explained in [`docs/sync-and-op-log/contributor-sync-model.md`](docs/sync-and-op-log/contributor-sync-model.md).
+Touched on most state-related PRs. Read the linked source/doc for full reasoning before editing. Rules 1–3 and 6 are one invariant — _one user intent = one op; replayed/remote ops must not re-trigger effects_ — fully explained in [`docs/sync-and-op-log/contributor-sync-model.md`](docs/sync-and-op-log/contributor-sync-model.md).
 
 1. **Effects inject `LOCAL_ACTIONS`**, never `Actions` (`ALL_ACTIONS` only for the op-log capture effect; remote archive side effects → `ArchiveOperationHandler`, not `ALL_ACTIONS`). Lint-enforced (`no-actions-in-effects`). → [contributor-sync-model.md](docs/sync-and-op-log/contributor-sync-model.md), `src/app/util/local-actions.token.ts`.
 2. **Prefer action-based effects**; a selector-based effect needs `skipDuringSyncWindow()`. Lint-enforced (`require-hydration-guard`). → [contributor-sync-model.md](docs/sync-and-op-log/contributor-sync-model.md).
@@ -57,6 +57,77 @@ Touched on most state-related PRs. Read the linked source/doc for full reasoning
 ## Commit messages
 
 Angular format `type(scope): description`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`. Examples: `feat(tasks): add recurring task support`, `fix(sync): handle network timeout`. **Never** `fix(test):` or `fix(e2e):` — test changes use `test:`.
+
+## Fork management workflow
+
+This repo is a fork of `johannesjo/super-productivity` (remote: `upstream`). We maintain feature branches for upstream PRs while keeping a fully integrated `master` for local use.
+
+### Branch strategy
+
+| Branch        | Purpose                                                             | Base              |
+| ------------- | ------------------------------------------------------------------- | ----------------- |
+| `master`      | Fork's integration branch — all features merged + fork-only changes | `upstream/master` |
+| `feat/<name>` | Single upstream-proposable feature, clean diff vs `upstream/master` | `upstream/master` |
+
+### Adding a new feature
+
+1. **Create feature branch** from `upstream/master`:
+   ```bash
+   git fetch upstream
+   git checkout -b feat/my-feature upstream/master
+   ```
+2. **Implement** on the feature branch — keep changes minimal and upstream-proposable (no fork-specific files).
+3. **Merge into master** for local testing:
+   ```bash
+   git checkout master
+   git merge feat/my-feature
+   ```
+4. **Push both**:
+   ```bash
+   git push origin feat/my-feature master
+   ```
+
+### Fixing a bug on an existing feature branch
+
+1. **Fix on master** first (fastest iteration).
+2. **Cherry-pick to the feature branch**:
+   ```bash
+   git checkout feat/my-feature
+   git cherry-pick <commit-hash>
+   git push origin feat/my-feature
+   git checkout master
+   ```
+
+### Fork-only changes
+
+Changes that should NOT go upstream (CI skips, sync scripts, custom `.gitignore` entries) go directly on `master` without a feature branch.
+
+### Syncing with upstream
+
+```bash
+git fetch upstream
+git checkout master
+git merge upstream/master   # resolve conflicts, test, push
+# Rebase feature branches if needed:
+git checkout feat/my-feature
+git rebase upstream/master
+git push origin feat/my-feature --force-with-lease
+```
+
+### Current feature branches
+
+| Branch                       | Description                                              |
+| ---------------------------- | -------------------------------------------------------- |
+| `feat/plugin-auto-discovery` | Build-time `index.json` + runtime fetch with fallback    |
+| `feat/service-launcher`      | Plugin-driven worker/process service launcher            |
+| `feat/native-macos`          | Background mode, close-to-tray, safe quit flow, macOS CI |
+
+### Key reminders
+
+- Feature branches must have a clean diff against `upstream/master` — no fork-specific files
+- `master` is always the union of all feature branches + fork-only residuals
+- Test on `master` before pushing feature branches
+- Android/iOS CI workflows are skipped on this fork (missing signing secrets)
 
 ## Anti-patterns
 
