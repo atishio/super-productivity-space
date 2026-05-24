@@ -8,6 +8,7 @@ on:
 
 jobs:
   ios-app-store-release:
+    if: github.repository == 'johannesjo/super-productivity'
     runs-on: macos-26
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}

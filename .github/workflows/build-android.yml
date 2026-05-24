@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-android:
+    if: github.repository == 'johannesjo/super-productivity'
     runs-on: ubuntu-latest
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}

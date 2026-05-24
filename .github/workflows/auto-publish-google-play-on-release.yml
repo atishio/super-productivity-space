@@ -8,8 +8,8 @@ jobs:
   auto-publish-google-play:
     runs-on: ubuntu-latest
 
-    # Only run for actual releases, not pre-releases
-    if: '!github.event.release.prerelease'
+    # Only run on upstream repo (fork doesn't have signing secrets) and for actual releases
+    if: github.repository == 'johannesjo/super-productivity' && !github.event.release.prerelease
 
     steps:
       - name: Harden Runner
