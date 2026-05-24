@@ -35,6 +35,7 @@ let isShowDevTools: boolean = IS_DEV;
 let customUrl: string;
 let isDisableTray = false;
 let forceDarkTray = false;
+let isBackgroundMode = false;
 let wasUserDataDirSet = false;
 
 if (IS_DEV) {
@@ -129,7 +130,18 @@ export const startApp = (): void => {
     if (val && val.includes('--dev-tools')) {
       isShowDevTools = true;
     }
+
+    if (val && val.includes('--background')) {
+      isBackgroundMode = true;
+      log('Running in background mode (no visible window)');
+    }
   });
+
+  // Background mode needs tray for "Quit" escape hatch — override --disable-tray
+  if (isBackgroundMode && isDisableTray) {
+    isDisableTray = false;
+    log('Background mode: tray icon forced on (needed for Quit)');
+  }
 
   // TODO remove at one point in the future and only leave the directory setting part
   // Special handling for snaps, since default user folder will cause problems when updating
@@ -451,6 +463,10 @@ export const startApp = (): void => {
   });
 
   appIN.on('window-all-closed', () => {
+    if (isBackgroundMode) {
+      log('Background mode: keeping app alive after all windows closed');
+      return;
+    }
     log('Quit after all windows being closed');
     // Force quit the app
     app.quit();
@@ -512,6 +528,7 @@ export const startApp = (): void => {
       ICONS_FOLDER,
       quitApp,
       customUrl,
+      isBackgroundMode,
     });
 
     initPluginOAuth(mainWin);

@@ -29,6 +29,7 @@ import { SimpleStoreKey } from './shared-with-frontend/simple-store.const';
 import { markGpuStartupSuccess } from './gpu-startup-guard';
 
 let mainWin: BrowserWindow;
+let _isBackgroundMode = false;
 
 // Compact WCO band on Win/Linux. Native button width is OS-controlled
 // (~138px total); only height is configurable. Lower values may be
@@ -72,13 +73,17 @@ export const createWindow = async ({
   quitApp,
   app,
   customUrl,
+  isBackgroundMode,
 }: {
   IS_DEV: boolean;
   ICONS_FOLDER: string;
   quitApp: () => void;
   app: App;
   customUrl?: string;
+  isBackgroundMode?: boolean;
 }): Promise<BrowserWindow> => {
+  _isBackgroundMode = !!isBackgroundMode;
+
   // make sure the main window isn't already created
   if (mainWin) {
     errorHandlerWithFrontendInform('Main window already exists');
@@ -284,6 +289,10 @@ export const createWindow = async ({
 
   // show gracefully
   mainWin.once('ready-to-show', () => {
+    if (isBackgroundMode) {
+      log('Background mode: window loaded but staying hidden');
+      return;
+    }
     mainWin.show();
 
     // Workaround for Windows phantom focus bug (electron#20464):
@@ -519,6 +528,17 @@ const appCloseHandler = (app: App): void => {
     // NOTE: this might not work if we run a second instance of the app
     log('close event: isQuiting=', getIsQuiting(), 'pendingBeforeCloseIds=', ids);
     if (!getIsQuiting()) {
+      // Background mode: always hide to tray on close (keeps MCP server alive)
+      if (_isBackgroundMode) {
+        const indicator = ensureIndicator();
+        if (indicator) {
+          event.preventDefault();
+          setWasMaximizedBeforeHide(mainWin.isMaximized());
+          mainWin.hide();
+          showTaskWidget();
+          return;
+        }
+      }
       if (getIsMinimizeToTray()) {
         const indicator = ensureIndicator();
         if (indicator) {

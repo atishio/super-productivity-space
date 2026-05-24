@@ -1,0 +1,40 @@
+extends: electron-builder.yaml
+
+productName: Super Productivity
+
+mac:
+  appId: com.coworkerhub.super-productivity
+  type: development
+  identity: null
+  provisioningProfile: null
+  notarize: false
+  hardenedRuntime: false
+  entitlements: null
+  entitlementsInherit: null
+  target:
+    - target: dmg
+      arch:
+        - arm64
+
+dmg:
+  sign: false
+
+files:
+  - electron/**/*
+  - '!electron/**/*.ts'
+  - '!electron/**/*.js.map'
+  - .tmp/angular-dist/**/*
+  - '!**/@nx/nx-darwin-*/**'
+  - '!**/@nx/nx-linux-*/**'
+  - '!**/@nx/nx-win32-*/**'
+  - '!**/@capacitor/**'
+  - '!**/@capawesome/**'
+  - '!**/capacitor-plugin-safe-area/**'
+  - '!**/sharp/**'
+  - '!**/@img/**'
+  - '!**/@lmdb/**'
+  - '!**/@rollup/**'
+  - '!**/@material-symbols/**'
+  - '!**/@noble/**'
+  - '!**/hash-wasm/**'
+  - '!**/uuidv7/**'
