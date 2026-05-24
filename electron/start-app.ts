@@ -9,6 +9,7 @@ import { IPC } from './shared-with-frontend/ipc-events.const';
 import { initBackupAdapter } from './backup';
 import { initLocalFileSyncAdapter } from './local-file-sync';
 import { initFullScreenBlocker } from './full-screen-blocker';
+import { initServices, stopServices } from './service-launcher';
 import { CONFIG } from './CONFIG';
 import { lazySetInterval } from './shared-with-frontend/lazy-set-interval';
 import { initIndicator } from './indicator';
@@ -273,6 +274,7 @@ export const startApp = (): void => {
   appIN.on('ready', () => initBackupAdapter());
   appIN.on('ready', () => initLocalFileSyncAdapter());
   appIN.on('ready', () => initFullScreenBlocker(IS_DEV));
+  appIN.on('ready', () => initServices());
 
   if (!isDisableTray) {
     appIN.on('ready', createIndicator);
@@ -419,6 +421,7 @@ export const startApp = (): void => {
     // Safe to remove IPC listeners here: all windows are closed and before-close
     // IPC flows (sync, finish-day) are guaranteed to have completed.
     ipcMain.removeAllListeners();
+    stopServices();
   });
 
   appIN.on('before-quit', (event) => {
