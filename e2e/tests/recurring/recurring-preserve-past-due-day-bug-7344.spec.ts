@@ -12,10 +12,15 @@ import { expect, test } from '../../fixtures/test.fixture';
  * Expected: the task's planned date is preserved. The task should remain
  * visible in Today view (as overdue) after the conversion.
  *
- * Strategy: Use `page.clock.setFixedTime()` to create a task "today" on an
+ * Strategy: Use `page.clock.setSystemTime()` to create a task "today" on an
  * early date, advance the clock past that date so the task's dueDay becomes
  * past, then convert to YEARLY recurring via the repeat dialog and verify
  * the task still appears in Today.
+ *
+ * Uses setSystemTime (not setFixedTime) so that timers and navigation
+ * continue to work normally — setFixedTime freezes Date.now() which can
+ * stall page.reload() when the app has pending async operations (e.g. the
+ * visibilitychange sync trigger).
  */
 test.describe('Recurring Task - preserve past dueDay (#7344)', () => {
   test('should keep task in Today when converting a past-dated task to YEARLY recurring', async ({
@@ -27,7 +32,8 @@ test.describe('Recurring Task - preserve past dueDay (#7344)', () => {
     const taskTitle = `${testPrefix}-Preserve7344`;
 
     // 1. Boot on April 1, 2026 and create a task — it gets dueDay = 2026-04-01.
-    await page.clock.setFixedTime(new Date('2026-04-01T10:00:00'));
+    await page.clock.install();
+    await page.clock.setSystemTime(new Date('2026-04-01T10:00:00'));
     await page.reload({ waitUntil: 'domcontentloaded' });
     await workViewPage.waitForTaskList();
 
@@ -37,7 +43,7 @@ test.describe('Recurring Task - preserve past dueDay (#7344)', () => {
 
     // 2. Advance the clock ~3 weeks so the task's dueDay is now in the past,
     //    reload so the app picks up the new "today".
-    await page.clock.setFixedTime(new Date('2026-04-23T10:00:00'));
+    await page.clock.setSystemTime(new Date('2026-04-23T10:00:00'));
     await page.reload({ waitUntil: 'domcontentloaded' });
     await workViewPage.waitForTaskList();
 
